@@ -67,19 +67,23 @@ def register():
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
-    if request.method == 'POST':
-        data = request.get_json(force=True, silent=True)
-        if data is None:
-            return jsonify({"message": "Invalid JSON data"}), 400
-        username = data.get('username')
-        password = data.get('password')
-        user = User.query.filter_by(username=username).first()
-        if user and bcrypt.check_password_hash(user.password, password):
-            access_token = create_access_token(identity=user.id)
-            return jsonify({"message": "Login successful", "token": access_token}), 200
-        return jsonify({"message": "Invalid credentials"}), 401
-    else:
-        return render_template('login.html')  # HTML 템플릿을 사용하여 로그인 폼을 반환
+    try:
+        if request.method == 'POST':
+            data = request.get_json(force=True, silent=True)
+            if data is None:
+                return jsonify({"message": "Invalid JSON data"}), 400
+            username = data.get('username')
+            password = data.get('password')
+            user = User.query.filter_by(username=username).first()
+            if user and bcrypt.check_password_hash(user.password, password):
+                access_token = create_access_token(identity=user.id)
+                return jsonify({"message": "Login successful", "token": access_token}), 200
+            return jsonify({"message": "Invalid credentials"}), 401
+        else:
+            return render_template('login.html')  # HTML 템플릿을 사용하여 로그인 폼을 반환
+    except Exception as e:
+        return jsonify({"message": "An error occurred", "error": str(e)}), 500
+
 
 @app.route('/logout', methods=['GET'])
 @jwt_required()
