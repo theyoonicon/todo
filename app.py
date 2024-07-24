@@ -72,7 +72,9 @@ def register():
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
-        data = request.get_json()
+        data = request.get_json(force=True, silent=True)
+        if data is None:
+            return jsonify({"message": "Invalid JSON data"}), 400
         username = data.get('username')
         password = data.get('password')
         user = User.query.filter_by(username=username).first()
