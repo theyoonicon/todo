@@ -125,7 +125,7 @@ def get_or_add_todos(username):
             else:
                 all_todos = TodoItem.query.filter_by(user_id=user.id).all()
                 result = todos_schema.dump(all_todos)
-                return render_template('todos.html', todos=result)  # HTML 템플릿을 사용하여 Todo 목록을 반환
+                return jsonify(result)  # HTML 대신 JSON 반환
         return jsonify({"message": "Unauthorized access"}), 401
     except Exception as e:
         return jsonify({"message": "An error occurred", "error": str(e)}), 500
