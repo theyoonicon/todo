@@ -1,9 +1,8 @@
 from flask import Flask, request, jsonify, render_template
 from flask_sqlalchemy import SQLAlchemy
 from flask_marshmallow import Marshmallow
-from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
-from werkzeug.security import generate_password_hash, check_password_hash
-from flask_migrate import Migrate
+from flask_bcrypt import Bcrypt
+from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity
 import os
 
 app = Flask(__name__)
@@ -11,23 +10,22 @@ basedir = os.path.abspath(os.path.dirname(__file__))
 
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(basedir, 'db.sqlite')
 app.config['SECRET_KEY'] = 'your_secret_key'  # 보안을 위해 실제 키는 복잡하게 설정하세요
+app.config['JWT_SECRET_KEY'] = 'your_jwt_secret_key'  # JWT 비밀 키
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
 ma = Marshmallow(app)
-login_manager = LoginManager()
-login_manager.init_app(app)
-login_manager.login_view = 'login'
-migrate = Migrate(app, db)
+bcrypt = Bcrypt(app)
+jwt = JWTManager(app)
 
-class User(UserMixin, db.Model):
+class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(100), unique=True)
     password = db.Column(db.String(100))
 
     def __init__(self, username, password):
         self.username = username
-        self.password = generate_password_hash(password)
+        self.password = bcrypt.generate_password_hash(password).decode('utf-8')
 
 class TodoItem(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -46,10 +44,6 @@ class TodoSchema(ma.Schema):
 
 todo_schema = TodoSchema()
 todos_schema = TodoSchema(many=True)
-
-@login_manager.user_loader
-def load_user(user_id):
-    return User.query.get(int(user_id))
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
@@ -80,24 +74,25 @@ def login():
         username = data.get('username')
         password = data.get('password')
         user = User.query.filter_by(username=username).first()
-        if user and check_password_hash(user.password, password):
-            login_user(user)
-            return jsonify({"message": "Login successful", "token": "your_generated_token"}), 200
+        if user and bcrypt.check_password_hash(user.password, password):
+            access_token = create_access_token(identity=user.id)
+            return jsonify({"message": "Login successful", "token": access_token}), 200
         return jsonify({"message": "Invalid credentials"}), 401
     else:
         return render_template('login.html')  # HTML 템플릿을 사용하여 로그인 폼을 반환
 
 @app.route('/logout', methods=['GET'])
-@login_required
+@jwt_required()
 def logout():
-    logout_user()
+    # 로그아웃 기능은 프론트엔드에서 토큰을 삭제하는 것으로 처리합니다.
     return jsonify({"message": "Logged out successfully"}), 200
 
 @app.route('/<username>/todos', methods=['GET', 'POST'])
-@login_required
+@jwt_required()
 def get_or_add_todos(username):
-    user = User.query.filter_by(username=username).first()
-    if user and user.id == current_user.id:
+    user_id = get_jwt_identity()
+    user = User.query.filter_by(id=user_id).first()
+    if user and user.username == username:
         if request.method == 'POST':
             data = request.get_json(force=True, silent=True)
             if data is None:
@@ -115,10 +110,11 @@ def get_or_add_todos(username):
     return jsonify({"message": "Unauthorized access"}), 401
 
 @app.route('/<username>/todos/<id>', methods=['PUT', 'PATCH'])
-@login_required
+@jwt_required()
 def execute_todo(username, id):
-    user = User.query.filter_by(username=username).first()
-    if user and user.id == current_user.id:
+    user_id = get_jwt_identity()
+    user = User.query.filter_by(id=user_id).first()
+    if user and user.username == username:
         todo = TodoItem.query.get(id)
         if todo and todo.user_id == user.id:
             todo.is_executed = not todo.is_executed
@@ -127,10 +123,11 @@ def execute_todo(username, id):
     return jsonify({"message": "Unauthorized access"}), 401
 
 @app.route('/<username>/todos/<id>', methods=['DELETE'])
-@login_required
+@jwt_required()
 def delete_todo(username, id):
-    user = User.query.filter_by(username=username).first()
-    if user and user.id == current_user.id:
+    user_id = get_jwt_identity()
+    user = User.query.filter_by(id=user_id).first()
+    if user and user.username == username:
         todo_to_delete = TodoItem.query.get(id)
         if todo_to_delete and todo_to_delete.user_id == user.id:
             db.session.delete(todo_to_delete)
