@@ -35,7 +35,19 @@ class TodoSchema(ma.Schema):
 todo_schema = TodoSchema()
 todos_schema = TodoSchema(many=True)
 
-@app.route('/todo', methods=['POST'])
+@app.route('/tod')
+def default():
+    return 'hello'
+
+
+@app.route('/to', methods=['GET'])
+def get_todos():
+    all_todos = TodoItem.query.all()
+    result = todos_schema.dump(all_todos)
+    return jsonify(result)
+    
+
+@app.route('/to', methods=['POST'])
 def add_todo():
     name = request.json['name']
     is_executed = request.json['is_executed']
@@ -46,14 +58,9 @@ def add_todo():
 
     return todo_schema.jsonify(new_todo_item)
 
-@app.route('/todo', methods=['GET'])
-def get_todos():
-    all_todos = TodoItem.query.all()
-    result = todos_schema.dump(all_todos)
 
-    return jsonify(result)
 
-@app.route('/todo/<id>', methods=['PUT', 'PATCH'])
+@app.route('/to/<id>', methods=['PUT', 'PATCH'])
 def execute_todo(id):
     todo = TodoItem.query.get(id)
 
@@ -62,13 +69,16 @@ def execute_todo(id):
 
     return todo_schema.jsonify(todo)
 
-@app.route('/todo/<id>', methods=['DELETE'])
+
+@app.route('/to/<id>', methods=['DELETE'])
 def delete_todo(id):
     todo_to_delete = TodoItem.query.get(id)
     db.session.delete(todo_to_delete)
     db.session.commit()
 
     return todo_schema.jsonify(todo_to_delete)
+
+
 
 if __name__ == '__main__':
     app.run(debug=True)
