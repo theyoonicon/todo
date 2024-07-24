@@ -2,7 +2,7 @@ from flask import Flask, request, jsonify, render_template, redirect, url_for, m
 from flask_sqlalchemy import SQLAlchemy
 from flask_marshmallow import Marshmallow
 from flask_bcrypt import Bcrypt
-from flask_jwt_extended import JWTManager, create_access_token, decode_token
+from flask_jwt_extended import JWTManager, create_access_token, decode_token, get_jwt_identity, jwt_required
 import os
 
 app = Flask(__name__)
@@ -89,11 +89,14 @@ def login():
     except Exception as e:
         return jsonify({"message": "An error occurred", "error": str(e)}), 500
 
-def get_jwt_identity_from_cookie():
+def get_jwt_identity_from_request():
     auth_header = request.headers.get('Authorization')
-    if not auth_header or not auth_header.startswith('Bearer '):
+    if auth_header and auth_header.startswith('Bearer '):
+        token = auth_header.split(' ')[1]
+    else:
+        token = request.cookies.get('access_token')
+    if not token:
         return None
-    token = auth_header.split(' ')[1]
     try:
         decoded_token = decode_token(token)
         return decoded_token['sub']
@@ -109,7 +112,7 @@ def logout():
 @app.route('/<username>/todos', methods=['GET', 'POST'])
 def get_or_add_todos(username):
     try:
-        user_id = get_jwt_identity_from_cookie()
+        user_id = get_jwt_identity_from_request()
         if not user_id:
             return jsonify({"message": "Unauthorized access"}), 401
         user = User.query.filter_by(id=user_id).first()
@@ -135,7 +138,7 @@ def get_or_add_todos(username):
 @app.route('/<username>/todos/<id>', methods=['PUT', 'PATCH'])
 def execute_todo(username, id):
     try:
-        user_id = get_jwt_identity_from_cookie()
+        user_id = get_jwt_identity_from_request()
         if not user_id:
             return jsonify({"message": "Unauthorized access"}), 401
         user = User.query.filter_by(id=user_id).first()
@@ -152,11 +155,11 @@ def execute_todo(username, id):
 @app.route('/<username>/todos/<id>', methods=['DELETE'])
 def delete_todo(username, id):
     try:
-        user_id = get_jwt_identity_from_cookie()
+        user_id = get_jwt_identity_from_request()
         if not user_id:
             return jsonify({"message": "Unauthorized access"}), 401
         user = User.query.filter_by(id=user_id).first()
-        if user and user.username == username:
+        if user and user.username == username):
             todo_to_delete = TodoItem.query.get(id)
             if todo_to_delete and todo_to_delete.user_id == user.id:
                 db.session.delete(todo_to_delete)
