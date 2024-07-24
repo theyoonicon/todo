@@ -159,7 +159,7 @@ def delete_todo(username, id):
         if not user_id:
             return jsonify({"message": "Unauthorized access"}), 401
         user = User.query.filter_by(id=user_id).first()
-        if user and user.username == username):
+        if user and user.username == username:
             todo_to_delete = TodoItem.query.get(id)
             if todo_to_delete and todo_to_delete.user_id == user.id:
                 db.session.delete(todo_to_delete)
