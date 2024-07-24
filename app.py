@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, redirect, url_for, session, render_template
+from flask import Flask, request, jsonify, render_template
 from flask_sqlalchemy import SQLAlchemy
 from flask_marshmallow import Marshmallow
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
@@ -54,7 +54,9 @@ def load_user(user_id):
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     if request.method == 'POST':
-        data = request.get_json()
+        data = request.get_json(force=True, silent=True)
+        if data is None:
+            return jsonify({"message": "Invalid JSON data"}), 400
         username = data.get('username')
         password = data.get('password')
         if not username or not password:
@@ -85,48 +87,34 @@ def login():
     else:
         return render_template('login.html')  # HTML 템플릿을 사용하여 로그인 폼을 반환
 
-@app.route('/logout')
+@app.route('/logout', methods=['GET'])
 @login_required
 def logout():
     logout_user()
-    return redirect(url_for('login'))
+    return jsonify({"message": "Logged out successfully"}), 200
 
-@app.route('/<username>/todos')
+@app.route('/<username>/todos', methods=['GET', 'POST'])
 @login_required
-def todos(username):
+def get_or_add_todos(username):
     user = User.query.filter_by(username=username).first()
     if user and user.id == current_user.id:
-        all_todos = TodoItem.query.filter_by(user_id=user.id).all()
-        result = todos_schema.dump(all_todos)
-        return render_template('todos.html', todos=result)
-    return 'Unauthorized access', 401
-
-@app.route('/<username>/to', methods=['GET'])
-@login_required
-def get_todos(username):
-    user = User.query.filter_by(username=username).first()
-    if user and user.id == current_user.id:
-        all_todos = TodoItem.query.filter_by(user_id=user.id).all()
-        result = todos_schema.dump(all_todos)
-        return jsonify(result)
+        if request.method == 'POST':
+            data = request.get_json(force=True, silent=True)
+            if data is None:
+                return jsonify({"message": "Invalid JSON data"}), 400
+            name = data.get('name')
+            is_executed = data.get('is_executed', False)
+            new_todo_item = TodoItem(user_id=user.id, name=name, is_executed=is_executed)
+            db.session.add(new_todo_item)
+            db.session.commit()
+            return todo_schema.jsonify(new_todo_item), 201
+        else:
+            all_todos = TodoItem.query.filter_by(user_id=user.id).all()
+            result = todos_schema.dump(all_todos)
+            return jsonify(result)
     return jsonify({"message": "Unauthorized access"}), 401
 
-@app.route('/<username>/to', methods=['POST'])
-@login_required
-def add_todo(username):
-    user = User.query.filter_by(username=username).first()
-    if user and user.id == current_user.id:
-        name = request.json['name']
-        is_executed = request.json['is_executed']
-
-        new_todo_item = TodoItem(user_id=user.id, name=name, is_executed=is_executed)
-        db.session.add(new_todo_item)
-        db.session.commit()
-
-        return todo_schema.jsonify(new_todo_item)
-    return jsonify({"message": "Unauthorized access"}), 401
-
-@app.route('/<username>/to/<id>', methods=['PUT', 'PATCH'])
+@app.route('/<username>/todos/<id>', methods=['PUT', 'PATCH'])
 @login_required
 def execute_todo(username, id):
     user = User.query.filter_by(username=username).first()
@@ -138,7 +126,7 @@ def execute_todo(username, id):
             return todo_schema.jsonify(todo)
     return jsonify({"message": "Unauthorized access"}), 401
 
-@app.route('/<username>/to/<id>', methods=['DELETE'])
+@app.route('/<username>/todos/<id>', methods=['DELETE'])
 @login_required
 def delete_todo(username, id):
     user = User.query.filter_by(username=username).first()
