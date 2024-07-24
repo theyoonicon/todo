@@ -54,16 +54,20 @@ def load_user(user_id):
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     if request.method == 'POST':
-        username = request.form['username']
-        password = request.form['password']
+        data = request.get_json()
+        username = data.get('username')
+        password = data.get('password')
+        if not username or not password:
+            return jsonify({"message": "Missing username or password"}), 400
         existing_user = User.query.filter_by(username=username).first()
         if existing_user:
-            return 'User already exists', 400
+            return jsonify({"message": "User already exists"}), 400
         new_user = User(username=username, password=password)
         db.session.add(new_user)
         db.session.commit()
-        return redirect(url_for('login'))
-    return render_template('register.html')
+        return jsonify({"message": "User registered successfully"}), 201
+    else:
+        return render_template('register.html')  # HTML 템플릿을 사용하여 등록 폼을 반환
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
