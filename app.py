@@ -78,7 +78,10 @@ def login():
             user = User.query.filter_by(username=username).first()
             if user and bcrypt.check_password_hash(user.password, password):
                 access_token = create_access_token(identity=user.id)
-                return jsonify({"message": "Login successful", "token": access_token}), 200
+                response = jsonify({"message": "Login successful", "token": access_token})
+                response.status_code = 200
+                response.headers["Location"] = f"/{username}/todos"
+                return response
             return jsonify({"message": "Invalid credentials"}), 401
         else:
             return render_template('login.html')  # HTML 템플릿을 사용하여 로그인 폼을 반환
