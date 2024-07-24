@@ -84,6 +84,7 @@ def login():
     except Exception as e:
         return jsonify({"message": "An error occurred", "error": str(e)}), 500
 
+
 def get_jwt_identity_from_request():
     auth_header = request.headers.get('Authorization')
     if auth_header and auth_header.startswith('Bearer '):
