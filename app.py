@@ -2,7 +2,7 @@ from flask import Flask, request, jsonify, render_template, redirect, url_for, m
 from flask_sqlalchemy import SQLAlchemy
 from flask_marshmallow import Marshmallow
 from flask_bcrypt import Bcrypt
-from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity
+from flask_jwt_extended import JWTManager, create_access_token, decode_token
 import os
 
 app = Flask(__name__)
@@ -71,7 +71,6 @@ def login():
         if request.method == 'POST':
             data = request.get_json(silent=True)
             if data is None:
-                # JSON 데이터가 없으면 폼 데이터로 처리
                 data = request.form
             username = data.get('username')
             password = data.get('password')
@@ -86,22 +85,32 @@ def login():
                     return response
             return jsonify({"message": "Invalid credentials"}), 401
         else:
-            return render_template('login.html')  # HTML 템플릿을 사용하여 로그인 폼을 반환
+            return render_template('login.html')
     except Exception as e:
         return jsonify({"message": "An error occurred", "error": str(e)}), 500
 
-@app.route('/logout', methods=['GET'])
-@jwt_required()
-def logout():
-    # 로그아웃 기능은 프론트엔드에서 토큰을 삭제하는 것으로 처리합니다.
-    return jsonify({"message": "Logged out successfully"}), 200
+def get_jwt_identity_from_cookie():
+    token = request.cookies.get('access_token')
+    if not token:
+        return None
+    try:
+        decoded_token = decode_token(token)
+        return decoded_token['sub']
+    except:
+        return None
 
+@app.route('/logout', methods=['GET'])
+def logout():
+    response = make_response(jsonify({"message": "Logged out successfully"}), 200)
+    response.delete_cookie('access_token')
+    return response
 
 @app.route('/<username>/todos', methods=['GET', 'POST'])
-@jwt_required(optional=True)
 def get_or_add_todos(username):
     try:
-        user_id = get_jwt_identity()
+        user_id = get_jwt_identity_from_cookie()
+        if not user_id:
+            return jsonify({"message": "Unauthorized access"}), 401
         user = User.query.filter_by(id=user_id).first()
         if user and user.username == username:
             if request.method == 'POST':
@@ -122,14 +131,12 @@ def get_or_add_todos(username):
     except Exception as e:
         return jsonify({"message": "An error occurred", "error": str(e)}), 500
 
-
-
-
 @app.route('/<username>/todos/<id>', methods=['PUT', 'PATCH'])
-@jwt_required()
 def execute_todo(username, id):
     try:
-        user_id = get_jwt_identity()
+        user_id = get_jwt_identity_from_cookie()
+        if not user_id:
+            return jsonify({"message": "Unauthorized access"}), 401
         user = User.query.filter_by(id=user_id).first()
         if user and user.username == username:
             todo = TodoItem.query.get(id)
@@ -142,10 +149,11 @@ def execute_todo(username, id):
         return jsonify({"message": "An error occurred", "error": str(e)}), 500
 
 @app.route('/<username>/todos/<id>', methods=['DELETE'])
-@jwt_required()
 def delete_todo(username, id):
     try:
-        user_id = get_jwt_identity()
+        user_id = get_jwt_identity_from_cookie()
+        if not user_id:
+            return jsonify({"message": "Unauthorized access"}), 401
         user = User.query.filter_by(id=user_id).first()
         if user and user.username == username:
             todo_to_delete = TodoItem.query.get(id)
@@ -156,15 +164,6 @@ def delete_todo(username, id):
         return jsonify({"message": "Unauthorized access"}), 401
     except Exception as e:
         return jsonify({"message": "An error occurred", "error": str(e)}), 500
-
-@app.before_request
-def before_request():
-    if 'Authorization' not in request.headers:
-        token = request.cookies.get('access_token')
-        if token:
-            request.headers = request.headers.copy()
-            request.headers['Authorization'] = f'Bearer {token}'
-
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0')
