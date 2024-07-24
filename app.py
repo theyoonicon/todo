@@ -81,14 +81,14 @@ def login():
                 if request.is_json:
                     return jsonify({"message": "Login successful", "token": access_token}), 200
                 else:
-                    return redirect(url_for('get_or_add_todos', username=username))
+                    response = make_response(redirect(url_for('get_or_add_todos', username=username)))
+                    response.set_cookie('access_token', access_token, httponly=True)
+                    return response
             return jsonify({"message": "Invalid credentials"}), 401
         else:
             return render_template('login.html')  # HTML 템플릿을 사용하여 로그인 폼을 반환
     except Exception as e:
         return jsonify({"message": "An error occurred", "error": str(e)}), 500
-
-
 
 @app.route('/logout', methods=['GET'])
 @jwt_required()
@@ -96,8 +96,9 @@ def logout():
     # 로그아웃 기능은 프론트엔드에서 토큰을 삭제하는 것으로 처리합니다.
     return jsonify({"message": "Logged out successfully"}), 200
 
+
 @app.route('/<username>/todos', methods=['GET', 'POST'])
-@jwt_required()
+@jwt_required(optional=True)
 def get_or_add_todos(username):
     try:
         user_id = get_jwt_identity()
@@ -120,6 +121,7 @@ def get_or_add_todos(username):
         return jsonify({"message": "Unauthorized access"}), 401
     except Exception as e:
         return jsonify({"message": "An error occurred", "error": str(e)}), 500
+
 
 
 
@@ -154,6 +156,15 @@ def delete_todo(username, id):
         return jsonify({"message": "Unauthorized access"}), 401
     except Exception as e:
         return jsonify({"message": "An error occurred", "error": str(e)}), 500
+
+@app.before_request
+def before_request():
+    if 'Authorization' not in request.headers:
+        token = request.cookies.get('access_token')
+        if token:
+            request.headers = request.headers.copy()
+            request.headers['Authorization'] = f'Bearer {token}'
+
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0')
