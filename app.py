@@ -146,7 +146,7 @@ def execute_todo(username, id):
         if not user_id:
             return jsonify({"message": "Unauthorized access"}), 401
         user = User.query.filter_by(id=user_id).first()
-        if user and user.username == username):
+        if user and user.username == username:
             todo = TodoItem.query.get(id)
             if todo and todo.user_id == user.id:
                 todo.is_executed = not todo.is_executed
