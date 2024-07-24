@@ -48,9 +48,9 @@ todos_schema = TodoSchema(many=True)
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     if request.method == 'POST':
-        data = request.get_json(force=True, silent=True)
+        data = request.get_json(silent=True)
         if data is None:
-            return jsonify({"message": "Invalid JSON data"}), 400
+            data = request.form
         username = data.get('username')
         password = data.get('password')
         if not username or not password:
@@ -64,6 +64,7 @@ def register():
         return jsonify({"message": "User registered successfully"}), 201
     else:
         return render_template('register.html')  # HTML 템플릿을 사용하여 등록 폼을 반환
+
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
