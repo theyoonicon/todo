@@ -69,9 +69,10 @@ def register():
 def login():
     try:
         if request.method == 'POST':
-            data = request.get_json(force=True, silent=True)
+            data = request.get_json(silent=True)
             if data is None:
-                return jsonify({"message": "Invalid JSON data"}), 400
+                # JSON 데이터가 없으면 폼 데이터로 처리
+                data = request.form
             username = data.get('username')
             password = data.get('password')
             user = User.query.filter_by(username=username).first()
