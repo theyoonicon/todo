@@ -76,8 +76,6 @@ def login():
             password = data.get('password')
             user = User.query.filter_by(username=username).first()
             if user and bcrypt.check_password_hash(user.password, password):
-                if request.accept_mimetypes.accept_json:
-                    return jsonify(result)
                 access_token = create_access_token(identity=user.id)
                 response = make_response(redirect(url_for('get_or_add_todos', username=username)))
                 response.set_cookie('access_token', access_token, httponly=True)
