@@ -71,13 +71,13 @@ def login():
         if request.method == 'POST':
             data = request.get_json(silent=True)
             if data is None:
-                data = request.form
+                return jsonify({"message": "Invalid JSON data"}), 400
             username = data.get('username')
             password = data.get('password')
             user = User.query.filter_by(username=username).first()
             if user and bcrypt.check_password_hash(user.password, password):
                 access_token = create_access_token(identity=user.id)
-                if request.is_json:
+                if request.accept_mimetypes.accept_json:
                     return jsonify({"message": "Login successful", "token": access_token}), 200
                 else:
                     response = make_response(redirect(url_for('get_or_add_todos', username=username)))
@@ -88,6 +88,7 @@ def login():
             return render_template('login.html')
     except Exception as e:
         return jsonify({"message": "An error occurred", "error": str(e)}), 500
+
 def get_jwt_identity_from_request():
     auth_header = request.headers.get('Authorization')
     if auth_header and auth_header.startswith('Bearer '):
@@ -101,11 +102,15 @@ def get_jwt_identity_from_request():
         return decoded_token['sub']
     except:
         return None
+
 @app.route('/logout', methods=['GET'])
 def logout():
-    response = make_response(jsonify({"message": "Logged out successfully"}), 200)
+    response = make_response(redirect(url_for('login')))
     response.delete_cookie('access_token')
+    if request.accept_mimetypes.accept_json:
+        return jsonify({"message": "Logged out successfully"}), 200
     return response
+
 @app.route('/<username>/todos', methods=['GET', 'POST'])
 def get_or_add_todos(username):
     try:
@@ -127,7 +132,9 @@ def get_or_add_todos(username):
             else:
                 all_todos = TodoItem.query.filter_by(user_id=user.id).all()
                 result = todos_schema.dump(all_todos)
-                return jsonify(result)
+                if request.accept_mimetypes.accept_json:
+                    return jsonify(result)
+                return render_template('todos.html', todos=result)
         return jsonify({"message": "Unauthorized access"}), 401
     except Exception as e:
         return jsonify({"message": "An error occurred", "error": str(e)}), 500
@@ -139,7 +146,7 @@ def execute_todo(username, id):
         if not user_id:
             return jsonify({"message": "Unauthorized access"}), 401
         user = User.query.filter_by(id=user_id).first()
-        if user and user.username == username:
+        if user and user.username == username):
             todo = TodoItem.query.get(id)
             if todo and todo.user_id == user.id:
                 todo.is_executed = not todo.is_executed
@@ -156,9 +163,9 @@ def delete_todo(username, id):
         if not user_id:
             return jsonify({"message": "Unauthorized access"}), 401
         user = User.query.filter_by(id=user_id).first()
-        if user and user.username == username:
+        if user and user.username == username):
             todo_to_delete = TodoItem.query.get(id)
-            if todo_to_delete and todo_to_delete.user_id == user.id:
+            if todo_to_delete and todo_to_delete.user_id == user.id):
                 db.session.delete(todo_to_delete)
                 db.session.commit()
                 return todo_schema.jsonify(todo_to_delete)
