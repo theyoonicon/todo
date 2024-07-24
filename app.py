@@ -78,15 +78,17 @@ def login():
             user = User.query.filter_by(username=username).first()
             if user and bcrypt.check_password_hash(user.password, password):
                 access_token = create_access_token(identity=user.id)
-                response = jsonify({"message": "Login successful", "token": access_token})
-                response.status_code = 200
-                response.headers["Location"] = f"/{username}/todos"
-                return response
+                if request.is_json:
+                    return jsonify({"message": "Login successful", "token": access_token}), 200
+                else:
+                    return redirect(url_for('get_or_add_todos', username=username))
             return jsonify({"message": "Invalid credentials"}), 401
         else:
             return render_template('login.html')  # HTML 템플릿을 사용하여 로그인 폼을 반환
     except Exception as e:
         return jsonify({"message": "An error occurred", "error": str(e)}), 500
+
+
 
 @app.route('/logout', methods=['GET'])
 @jwt_required()
@@ -118,6 +120,8 @@ def get_or_add_todos(username):
         return jsonify({"message": "Unauthorized access"}), 401
     except Exception as e:
         return jsonify({"message": "An error occurred", "error": str(e)}), 500
+
+
 
 @app.route('/<username>/todos/<id>', methods=['PUT', 'PATCH'])
 @jwt_required()
