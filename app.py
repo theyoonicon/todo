@@ -139,7 +139,7 @@ def delete_todo(username, id):
         user = User.query.filter_by(id=user_id).first()
         if user and user.username == username:
             todo_to_delete = TodoItem.query.get(id)
-            if todo_to_delete and todo_to_delete.user_id == user.id):
+            if todo_to_delete and todo_to_delete.user_id == user.id:
                 db.session.delete(todo_to_delete)
                 db.session.commit()
                 return todo_schema.jsonify(todo_to_delete)
