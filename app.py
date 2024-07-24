@@ -72,14 +72,16 @@ def register():
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
-        username = request.form['username']
-        password = request.form['password']
+        data = request.get_json()
+        username = data.get('username')
+        password = data.get('password')
         user = User.query.filter_by(username=username).first()
         if user and check_password_hash(user.password, password):
             login_user(user)
-            return redirect(url_for('todos', username=username))
-        return 'Invalid credentials', 401
-    return render_template('login.html')
+            return jsonify({"message": "Login successful", "token": "your_generated_token"}), 200
+        return jsonify({"message": "Invalid credentials"}), 401
+    else:
+        return render_template('login.html')  # HTML 템플릿을 사용하여 로그인 폼을 반환
 
 @app.route('/logout')
 @login_required
