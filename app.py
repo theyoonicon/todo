@@ -91,14 +91,16 @@ def login():
         return jsonify({"message": "An error occurred", "error": str(e)}), 500
 
 def get_jwt_identity_from_cookie():
-    token = request.cookies.get('access_token')
-    if not token:
+    auth_header = request.headers.get('Authorization')
+    if not auth_header or not auth_header.startswith('Bearer '):
         return None
+    token = auth_header.split(' ')[1]
     try:
         decoded_token = decode_token(token)
         return decoded_token['sub']
     except:
         return None
+
 
 @app.route('/logout', methods=['GET'])
 def logout():
@@ -131,6 +133,8 @@ def get_or_add_todos(username):
         return jsonify({"message": "Unauthorized access"}), 401
     except Exception as e:
         return jsonify({"message": "An error occurred", "error": str(e)}), 500
+
+
 
 @app.route('/<username>/todos/<id>', methods=['PUT', 'PATCH'])
 def execute_todo(username, id):
