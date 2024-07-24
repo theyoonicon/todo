@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, render_template
+from flask import Flask, request, jsonify, render_template, redirect, url_for
 from flask_sqlalchemy import SQLAlchemy
 from flask_marshmallow import Marshmallow
 from flask_bcrypt import Bcrypt
@@ -84,7 +84,6 @@ def login():
     except Exception as e:
         return jsonify({"message": "An error occurred", "error": str(e)}), 500
 
-
 @app.route('/logout', methods=['GET'])
 @jwt_required()
 def logout():
@@ -94,50 +93,59 @@ def logout():
 @app.route('/<username>/todos', methods=['GET', 'POST'])
 @jwt_required()
 def get_or_add_todos(username):
-    user_id = get_jwt_identity()
-    user = User.query.filter_by(id=user_id).first()
-    if user and user.username == username:
-        if request.method == 'POST':
-            data = request.get_json(force=True, silent=True)
-            if data is None:
-                return jsonify({"message": "Invalid JSON data"}), 400
-            name = data.get('name')
-            is_executed = data.get('is_executed', False)
-            new_todo_item = TodoItem(user_id=user.id, name=name, is_executed=is_executed)
-            db.session.add(new_todo_item)
-            db.session.commit()
-            return todo_schema.jsonify(new_todo_item), 201
-        else:
-            all_todos = TodoItem.query.filter_by(user_id=user.id).all()
-            result = todos_schema.dump(all_todos)
-            return jsonify(result)
-    return jsonify({"message": "Unauthorized access"}), 401
+    try:
+        user_id = get_jwt_identity()
+        user = User.query.filter_by(id=user_id).first()
+        if user and user.username == username:
+            if request.method == 'POST':
+                data = request.get_json(force=True, silent=True)
+                if data is None:
+                    return jsonify({"message": "Invalid JSON data"}), 400
+                name = data.get('name')
+                is_executed = data.get('is_executed', False)
+                new_todo_item = TodoItem(user_id=user.id, name=name, is_executed=is_executed)
+                db.session.add(new_todo_item)
+                db.session.commit()
+                return todo_schema.jsonify(new_todo_item), 201
+            else:
+                all_todos = TodoItem.query.filter_by(user_id=user.id).all()
+                result = todos_schema.dump(all_todos)
+                return jsonify(result)
+        return jsonify({"message": "Unauthorized access"}), 401
+    except Exception as e:
+        return jsonify({"message": "An error occurred", "error": str(e)}), 500
 
 @app.route('/<username>/todos/<id>', methods=['PUT', 'PATCH'])
 @jwt_required()
 def execute_todo(username, id):
-    user_id = get_jwt_identity()
-    user = User.query.filter_by(id=user_id).first()
-    if user and user.username == username:
-        todo = TodoItem.query.get(id)
-        if todo and todo.user_id == user.id:
-            todo.is_executed = not todo.is_executed
-            db.session.commit()
-            return todo_schema.jsonify(todo)
-    return jsonify({"message": "Unauthorized access"}), 401
+    try:
+        user_id = get_jwt_identity()
+        user = User.query.filter_by(id=user_id).first()
+        if user and user.username == username:
+            todo = TodoItem.query.get(id)
+            if todo and todo.user_id == user.id:
+                todo.is_executed = not todo.is_executed
+                db.session.commit()
+                return todo_schema.jsonify(todo)
+        return jsonify({"message": "Unauthorized access"}), 401
+    except Exception as e:
+        return jsonify({"message": "An error occurred", "error": str(e)}), 500
 
 @app.route('/<username>/todos/<id>', methods=['DELETE'])
 @jwt_required()
 def delete_todo(username, id):
-    user_id = get_jwt_identity()
-    user = User.query.filter_by(id=user_id).first()
-    if user and user.username == username:
-        todo_to_delete = TodoItem.query.get(id)
-        if todo_to_delete and todo_to_delete.user_id == user.id:
-            db.session.delete(todo_to_delete)
-            db.session.commit()
-            return todo_schema.jsonify(todo_to_delete)
-    return jsonify({"message": "Unauthorized access"}), 401
+    try:
+        user_id = get_jwt_identity()
+        user = User.query.filter_by(id=user_id).first()
+        if user and user.username == username:
+            todo_to_delete = TodoItem.query.get(id)
+            if todo_to_delete and todo_to_delete.user_id == user.id):
+                db.session.delete(todo_to_delete)
+                db.session.commit()
+                return todo_schema.jsonify(todo_to_delete)
+        return jsonify({"message": "Unauthorized access"}), 401
+    except Exception as e:
+        return jsonify({"message": "An error occurred", "error": str(e)}), 500
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0')
