@@ -2,7 +2,7 @@ from flask import Flask, request, jsonify, render_template, redirect, url_for, m
 from flask_sqlalchemy import SQLAlchemy
 from flask_marshmallow import Marshmallow
 from flask_bcrypt import Bcrypt
-from flask_jwt_extended import JWTManager, create_access_token, decode_token, get_jwt_identity, jwt_required
+from flask_jwt_extended import JWTManager, create_access_token, decode_token
 import os
 
 app = Flask(__name__)
@@ -105,7 +105,7 @@ def get_jwt_identity_from_request():
 
 @app.route('/logout', methods=['GET'])
 def logout():
-    response = make_response(jsonify({"message": "Logged out successfully"}), 200)
+    response = make_response(redirect(url_for('login')))
     response.delete_cookie('access_token')
     return response
 
@@ -130,7 +130,7 @@ def get_or_add_todos(username):
             else:
                 all_todos = TodoItem.query.filter_by(user_id=user.id).all()
                 result = todos_schema.dump(all_todos)
-                return jsonify(result)
+                return render_template('todos.html', todos=result)  # HTML 템플릿을 사용하여 Todo 목록을 반환
         return jsonify({"message": "Unauthorized access"}), 401
     except Exception as e:
         return jsonify({"message": "An error occurred", "error": str(e)}), 500
@@ -159,7 +159,7 @@ def delete_todo(username, id):
         if not user_id:
             return jsonify({"message": "Unauthorized access"}), 401
         user = User.query.filter_by(id=user_id).first()
-        if user and user.username == username:
+        if user and user.username == username):
             todo_to_delete = TodoItem.query.get(id)
             if todo_to_delete and todo_to_delete.user_id == user.id:
                 db.session.delete(todo_to_delete)
