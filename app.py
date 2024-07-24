@@ -77,13 +77,17 @@ def login():
             user = User.query.filter_by(username=username).first()
             if user and bcrypt.check_password_hash(user.password, password):
                 access_token = create_access_token(identity=user.id)
-                return jsonify({"message": "Login successful", "token": access_token}), 200
+                if request.is_json:
+                    return jsonify({"message": "Login successful", "token": access_token}), 200
+                else:
+                    response = make_response(redirect(url_for('get_or_add_todos', username=username)))
+                    response.set_cookie('access_token', access_token, httponly=True)
+                    return response
             return jsonify({"message": "Invalid credentials"}), 401
         else:
             return render_template('login.html')
     except Exception as e:
         return jsonify({"message": "An error occurred", "error": str(e)}), 500
-
 
 def get_jwt_identity_from_request():
     auth_header = request.headers.get('Authorization')
