@@ -71,7 +71,7 @@ def login():
         if request.method == 'POST':
             data = request.get_json(silent=True)
             if data is None:
-                return jsonify({"message": "Invalid JSON data"}), 400
+                data = request.form
             username = data.get('username')
             password = data.get('password')
             user = User.query.filter_by(username=username).first()
@@ -88,7 +88,6 @@ def login():
             return render_template('login.html')
     except Exception as e:
         return jsonify({"message": "An error occurred", "error": str(e)}), 500
-
 def get_jwt_identity_from_request():
     auth_header = request.headers.get('Authorization')
     if auth_header and auth_header.startswith('Bearer '):
@@ -102,15 +101,11 @@ def get_jwt_identity_from_request():
         return decoded_token['sub']
     except:
         return None
-
 @app.route('/logout', methods=['GET'])
 def logout():
-    response = make_response(redirect(url_for('login')))
+    response = make_response(jsonify({"message": "Logged out successfully"}), 200)
     response.delete_cookie('access_token')
-    if request.accept_mimetypes.accept_json:
-        return jsonify({"message": "Logged out successfully"}), 200
     return response
-
 @app.route('/<username>/todos', methods=['GET', 'POST'])
 def get_or_add_todos(username):
     try:
