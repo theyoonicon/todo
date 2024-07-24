@@ -77,7 +77,7 @@ def login():
             user = User.query.filter_by(username=username).first()
             if user and bcrypt.check_password_hash(user.password, password):
                 access_token = create_access_token(identity=user.id)
-                if 'application/json' in request.accept_mimetypes:
+                if request.headers.get('Accept') == 'application/json':
                     return jsonify({"message": "Login successful", "token": access_token}), 200
                 else:
                     response = make_response(redirect(url_for('get_or_add_todos', username=username)))
@@ -127,7 +127,7 @@ def get_or_add_todos(username):
             else:
                 all_todos = TodoItem.query.filter_by(user_id=user.id).all()
                 result = todos_schema.dump(all_todos)
-                if 'application/json' in request.accept_mimetypes:
+                if request.headers.get('Accept') == 'application/json':
                     return jsonify(result)
                 return render_template('todos.html', todos=result)
         return jsonify({"message": "Unauthorized access"}), 401
